@@ -377,8 +377,8 @@ const ICONS = {
 };
 
 const TASKS = [
-  { id: 1, title: '標題製造機', type: 'canvas', wash: '#e6b8a6',
-    desc: '讀完報導後，幫這篇新聞想一個<b>更吸睛的新標題</b>，用手指或 Apple Pencil 寫在下方畫布上。' },
+  { id: 1, title: '標題製造機', type: 'headline', wash: '#e6b8a6',
+    desc: '先找到報紙上這篇報導的<b>原本標題</b>，一字不漏打出來；再幫它想一個<b>更吸睛的新標題</b>。' },
   { id: 2, title: '關鍵字 Tag', type: 'tags', wash: '#e3c48e',
     desc: '找出這篇報導最重要的 <b>3 個關鍵字</b>，把它們變成 Hashtag。' },
   { id: 3, title: '知音相惜', type: 'padlet', wash: '#a9c3c9', showGo: true,
@@ -558,7 +558,7 @@ function openTask(id) {
   descBox.innerHTML = task.desc;
   $('taskBody').appendChild(descBox);
 
-  ({ canvas: buildCanvas, tags: buildTags, text: buildText, padlet: buildPadlet, identity: buildIdentity })[task.type](task);
+  ({ canvas: buildCanvas, tags: buildTags, text: buildText, padlet: buildPadlet, identity: buildIdentity, headline: buildHeadline })[task.type](task);
 }
 
 function closeTaskModal(force = false) {
@@ -781,6 +781,56 @@ function buildCanvas(task) {
     if (!needInk()) return;
     completeTask(task.id, pad.toDataURL());
   }, 'flex-1 sm:flex-none sm:min-w-[140px]');
+}
+
+/* =========================================================
+   type: headline（原標題 → 新標題）
+   ========================================================= */
+function buildHeadline(task) {
+  const body = $('taskBody');
+  const saved = state.data[task.id] || { orig: '', mine: '' };
+  const box = document.createElement('div');
+  box.innerHTML = `
+    <label class="block mb-6">
+      <span class="label">第一步｜報紙上的原本標題</span>
+      <input id="hlOrig" class="field" maxlength="60" autocomplete="off"
+             placeholder="照著報紙打出標題" value="${esc(saved.orig)}">
+    </label>
+    <div class="desc mb-4" style="border-left-color:var(--indigo);font-size:16px">
+      想新標題的小撇步：<br>
+      ・改成<b>問句</b>，讓人想知道答案<br>
+      ・放進一個<b>數字</b>或<b>生動的動詞</b><br>
+      ・說出這則新聞和<b>我們</b>有什麼關係
+    </div>
+    <label class="block">
+      <span class="label">第二步｜我的新標題</span>
+      <input id="hlMine" class="field" maxlength="40" autocomplete="off"
+             placeholder="寫一個更吸睛的標題" value="${esc(saved.mine)}">
+    </label>`;
+  body.appendChild(box);
+
+  const orig = $('hlOrig'), mine = $('hlMine');
+  [orig, mine].forEach(i => i.addEventListener('input', markDirty));
+
+  addFooterBtn('儲存', 'primary', () => {
+    const o = orig.value.trim(), m = mine.value.trim();
+    if (o.length < 2) {
+      showDialog({ icon: '報', wash: '#e6b8a6', title: '先打原本的標題', html: '請先找到報紙上這篇報導的標題，<br>照著打在「第一步」。',
+        buttons: [{ text: '好的', onClick: () => orig.focus() }] });
+      return;
+    }
+    if (m.length < 2) {
+      showDialog({ icon: '題', wash: '#e6b8a6', title: '還差新標題', html: '請在「第二步」寫下你自己想的新標題。',
+        buttons: [{ text: '好的', onClick: () => mine.focus() }] });
+      return;
+    }
+    if (o.replace(/\s/g, '') === m.replace(/\s/g, '')) {
+      showDialog({ icon: '新', wash: '#e6b8a6', title: '新標題跟原本一樣喔', html: '試著換個說法，<br>讓標題更吸引人！',
+        buttons: [{ text: '再想想', onClick: () => mine.focus() }] });
+      return;
+    }
+    completeTask(task.id, { orig: o, mine: m });
+  }, 'flex-1 sm:flex-none sm:min-w-[160px]');
 }
 
 /* =========================================================
@@ -1085,6 +1135,7 @@ function contentText(task, data) {
   switch (task.type) {
     case 'tags':     return data.join(' ');
     case 'text':     return data;
+    case 'headline': return `原標題：${data.orig}\n新標題：${data.mine}`;
     case 'padlet':   return '已在 Padlet 完成';
     case 'identity': return data.label;
     case 'canvas':   return '（手寫圖片）';
@@ -1168,14 +1219,18 @@ function loadSession() {
    ========================================================= */
 function wrapLines(ctx, text, maxW, maxLines) {
   const lines = [];
-  let line = '';
-  for (const ch of String(text).replace(/\s*\n\s*/g, ' ')) {
-    if (ctx.measureText(line + ch).width > maxW && line) {
-      lines.push(line); line = ch;
-      if (lines.length === maxLines) break;
-    } else line += ch;
+  outer:
+  for (const para of String(text).split('\n')) {
+    let line = '';
+    for (const ch of para) {
+      if (ctx.measureText(line + ch).width > maxW && line) {
+        lines.push(line); line = ch;
+        if (lines.length === maxLines) break outer;
+      } else line += ch;
+    }
+    if (line) lines.push(line);
+    if (lines.length >= maxLines) { lines.length = maxLines; break; }
   }
-  if (lines.length < maxLines && line) lines.push(line);
   if (lines.length === maxLines && ctx.measureText(lines[maxLines - 1]).width > maxW - 20) {
     lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…';
   }
