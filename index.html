@@ -359,6 +359,8 @@
 const PADLET_URL = 'https://padlet.com/littlejocelyn2/padlet-s025i8dsrbtdeoj5z748';   // ← 班級 Padlet 網址
 const SHEET_URL  = '';                 // ← Google Apps Script 網頁應用程式網址（留空＝不送試算表）
 const SUBMIT_SECTION = '九宮格成果';   // ← 學生繳交總表時，要貼到 Padlet 的哪個區段
+const RECORD_SECTION = '聲歷其境';     // ← 第 5 關錄音要貼到的區段
+const PHOTO_SECTION  = '畫重點';       // ← 第 8 關重點照片要貼到的區段
 
 /* 老師預覽模式：網址加上 ?preview 即可，九格全開、不送出任何資料 */
 const PREVIEW = new URLSearchParams(location.search).has('preview');
@@ -921,7 +923,7 @@ function buildPhoto(task) {
     </label>
     <div class="desc mt-4" style="border-left-color:var(--indigo);font-size:16px">
       第四步｜按「存成圖片」存到相簿，再按「複製關鍵句並前往 Padlet」，
-      到<b>「${esc(SUBMIT_SECTION)}」</b>區段新增貼文：<b>上傳照片</b>，內文<b>貼上關鍵句</b>。
+      到 Padlet 的<b style="color:var(--vermilion)">「${esc(PHOTO_SECTION)}」</b>區段，按該區段下方的 <b>＋</b> 新增貼文：<b>上傳照片</b>，內文<b>貼上關鍵句</b>。
     </div>`);
 
   const input = $('photoInput'), canvas = $('photoCanvas'), ctx = canvas.getContext('2d');
@@ -1075,7 +1077,7 @@ function buildPhoto(task) {
     copyText(`【畫重點】${who ? who + '：' : ''}${d.sentence || '（見照片）'}`);
     openPadlet();
     commitKeepOpen(d);
-    toast('已複製關鍵句，到 Padlet 上傳照片並貼上');
+    toast(`已複製關鍵句，到「${PHOTO_SECTION}」區段按＋上傳照片`);
   }, 'flex-1');
   addFooterBtn('完成', 'primary', () => {
     const d = collect(); if (d) completeTask(task.id, d);
@@ -1218,7 +1220,7 @@ function buildIdentity(task) {
       <div id="titleText" class="text-2xl font-black break-all tracking-wider" style="user-select:text;-webkit-user-select:text"></div>
     </div>
     <p class="mt-4 text-sm leading-loose tracking-wider text-[color:var(--ink-soft)]">
-      按下方按鈕會自動複製標題並開啟 Padlet，請貼上標題，再上傳你的朗讀錄音。</p>
+      按下方按鈕會自動複製標題並開啟 Padlet，請在<b>「${esc(RECORD_SECTION)}」</b>區段按 ＋，貼上標題，再上傳你的朗讀錄音。</p>
   `;
   body.appendChild(form);
 
@@ -1238,7 +1240,7 @@ function buildIdentity(task) {
           icon: '聲', wash: '#d9b169',
           title: firstTime ? '身分登記完成' : '資料已更新',
           html: `標題已複製：<br><b style="color:var(--ink);font-size:20px">${esc(generated.label)}</b><br><br>
-                 到 Padlet 新增貼文，<b>貼上標題</b>並上傳錄音。<br>${firstTime ? '其他 8 格任務已經解鎖。' : ''}
+                 到 Padlet 的<b>「${esc(RECORD_SECTION)}」</b>區段按 ＋ 新增貼文，<b>貼上標題</b>並上傳錄音。<br>${firstTime ? '其他 8 格任務已經解鎖。' : ''}
                  <div class="text-sm mt-2">（若貼不上，請照上方標題手動輸入）</div>`,
           buttons: [{ text: '開始闖關', style: 'gold' }]
         });
