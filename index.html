@@ -360,6 +360,9 @@ const PADLET_URL = 'https://padlet.com/littlejocelyn2/padlet-s025i8dsrbtdeoj5z74
 const SHEET_URL  = '';                 // ← Google Apps Script 網頁應用程式網址（留空＝不送試算表）
 const SUBMIT_SECTION = '九宮格成果';   // ← 學生繳交總表時，要貼到 Padlet 的哪個區段
 
+/* 老師預覽模式：網址加上 ?preview 即可，九格全開、不送出任何資料 */
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+
 /* 線條圖示（24×24） */
 const ICONS = {
   1: '<path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/><path d="M4 20l1.5-3.5"/>',
@@ -436,7 +439,7 @@ function renderBoard(justDoneId = null) {
 
   TASKS.forEach(t => {
     const done = state.done.has(t.id);
-    const locked = !unlocked && t.id !== 5;
+    const locked = !PREVIEW && !unlocked && t.id !== 5;
     const flipNow = (t.id === justDoneId);
 
     const btn = document.createElement('button');
@@ -526,7 +529,7 @@ function toast(msg) {
    ========================================================= */
 function openTask(id) {
   const task = TASKS.find(t => t.id === id);
-  if (id !== 5 && !state.done.has(5)) {
+  if (!PREVIEW && id !== 5 && !state.done.has(5)) {
     showDialog({
       icon: '鎖', wash: '#d6d2c4',
       title: '這一格還沒解鎖',
@@ -1054,6 +1057,7 @@ let sending = false;
 
 function setSync(kind, text) {
   const b = $('syncBadge');
+  if (PREVIEW) { b.className = 'sync wait'; b.textContent = '老師預覽模式・不會送出資料'; return; }
   if (!SHEET_URL) { b.classList.add('hidden'); return; }
   b.className = 'sync ' + kind;
   b.textContent = text;
@@ -1089,7 +1093,7 @@ function contentText(task, data) {
 }
 
 async function sendToSheet(id, data) {
-  if (!SHEET_URL || !state.identity) return;
+  if (PREVIEW || !SHEET_URL || !state.identity) return;
   const task = TASKS[id - 1];
   const p = {
     cls: state.identity.cls, seat: state.identity.seat, name: state.identity.name,
@@ -1136,6 +1140,7 @@ window.addEventListener('online', flushQueue);
    ========================================================= */
 const SESSION_KEY = 'newsBingo.v2';
 function saveSession() {
+  if (PREVIEW) return;
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({
       done: [...state.done], data: state.data, identity: state.identity,
@@ -1144,6 +1149,7 @@ function saveSession() {
   } catch (_) {}
 }
 function loadSession() {
+  if (PREVIEW) return;
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return;
@@ -1308,7 +1314,7 @@ async function openSubmit() {
 }
 
 function sendSubmitToSheet() {
-  if (!SHEET_URL || !state.identity) return;
+  if (PREVIEW || !SHEET_URL || !state.identity) return;
   sendQueue.push({
     cls: state.identity.cls, seat: state.identity.seat, name: state.identity.name,
     taskId: 0, title: '繳交總表', content: `完成 ${state.done.size}／9`, sentAt: new Date().toISOString()
@@ -1318,7 +1324,7 @@ function sendSubmitToSheet() {
 
 function renderSubmitBtn() {
   const b = $('submitBtn');
-  b.classList.toggle('hidden', !state.identity);
+  b.classList.toggle('hidden', !state.identity && !PREVIEW);
   b.textContent = state.submitted ? '再繳交一次（更新內容）' : '繳交九宮格到 Padlet';
 }
 $('submitBtn').addEventListener('click', askSubmit);
@@ -1393,7 +1399,7 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => { if (current && current.pad) current.pad.resize(); }, 200);
 });
 window.addEventListener('beforeunload', (e) => {
-  if (state.done.size > 0) { e.preventDefault(); e.returnValue = ''; }
+  if (!PREVIEW && state.done.size > 0) { e.preventDefault(); e.returnValue = ''; }
 });
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
