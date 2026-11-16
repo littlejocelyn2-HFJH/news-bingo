@@ -361,7 +361,15 @@ const SHEET_URL  = '';                 // ← Google Apps Script 網頁應用程
 const SUBMIT_SECTION = '九宮格成果';   // ← 學生繳交總表時，要貼到 Padlet 的哪個區段
 const RECORD_SECTION = '聲歷其境';     // ← 第 5 關錄音要貼到的區段
 const PHOTO_SECTION  = '畫重點';       // ← 第 8 關重點照片要貼到的區段
-const IMAGE_SECTION  = '影像支援';     // ← 第 4 關配圖要貼到的區段
+const IMAGE_SECTION  = 'ai影像';       // ← 第 4 關 AI 配圖要貼到的區段
+
+/* 各區段的分組連結（Breakout link）。留空＝打開整個板子（PADLET_URL） */
+const PADLET_LINKS = {
+  record: '',   // 聲歷其境：第 5 關上傳錄音、第 3 關聽錄音留言
+  image:  '',   // ai影像：第 4 關
+  photo:  '',   // 畫重點：第 8 關
+  submit: ''    // 九宮格成果：最後繳交總表
+};
 
 /* 老師預覽模式：網址加上 ?preview 即可，九格全開、不送出任何資料 */
 const PREVIEW = new URLSearchParams(location.search).has('preview');
@@ -387,7 +395,7 @@ const TASKS = [
   { id: 3, title: '知音相惜', type: 'padlet', wash: '#a9c3c9', showGo: true,
     desc: '到 Padlet <b>聽一位同學的朗讀錄音</b>，並在貼文下方留言<b>具體稱讚</b>（例如：咬字清楚、語速剛好、很有感情）。' },
   { id: 4, title: '影像支援', type: 'aiimage', wash: '#b4c7a6',
-    desc: '把這則新聞變成一張圖！寫一段<b>給 AI 的指令</b>，在 Padlet 用<b>「AI 影像」</b>產生圖片，貼到<b>「影像支援」</b>區段。' },
+    desc: '把這則新聞變成一張圖！寫一段<b>給 AI 的指令</b>，在 Padlet 用<b>「AI 影像」</b>產生圖片，貼到<b>「ai影像」</b>區段。' },
   { id: 5, title: '聲歷其境', type: 'identity', wash: '#d9b169',
     desc: '請挑選報導中最精華的<b>「完整一段」</b>，錄下你的朗讀。' },
   { id: 6, title: '記者 OS', type: 'text', wash: '#9fb9cf',
@@ -1076,7 +1084,7 @@ function buildPhoto(task) {
     const d = collect(); if (!d) return;
     const who = whoAmI();
     copyText(`【畫重點】${who ? who + '：' : ''}${d.sentence || '（見照片）'}`);
-    openPadlet();
+    openPadlet('photo');
     commitKeepOpen(d);
     toast(`已複製關鍵句，到「${PHOTO_SECTION}」區段按＋上傳照片`);
   }, 'flex-1');
@@ -1189,7 +1197,7 @@ function buildAiImage(task) {
   addFooterBtn('複製指令並前往 Padlet ↗', 'success', () => {
     const d = collect(); if (!d) return;
     copyText(d.prompt);
-    openPadlet();
+    openPadlet('image');
     keepOpenCommit(task, d);
     toast(`指令已複製：到「${IMAGE_SECTION}」按＋ → ⋯ → AI 影像`);
   }, 'flex-1');
@@ -1317,10 +1325,10 @@ function buildPadlet(task) {
       </div>`);
     addFooterBtn('複製標題並前往 Padlet ↗', 'success', () => {
       copyText(label);
-      openPadlet();
+      openPadlet('image');
       toast(`標題已複製，到「${IMAGE_SECTION}」區段按＋`);
     }, 'flex-1');
-  } else if (task.showGo) addFooterBtn('前往 Padlet ↗', 'success', openPadlet);
+  } else if (task.showGo) addFooterBtn('前往 Padlet ↗', 'success', () => openPadlet('record'));
   addFooterBtn('我已完成', 'primary', () => {
     showDialog({
       icon: '問', wash: task.wash,
@@ -1367,7 +1375,7 @@ function buildIdentity(task) {
   const goBtn = addFooterBtn('複製標題並前往 Padlet ↗', 'success', () => {
     if (!generated) return;
     copyText(generated.label);
-    window.open(PADLET_URL, '_blank', 'noopener');
+    openPadlet('record');
     const firstTime = !state.done.has(5);
     state.identity = generated;
     completeTask(5, generated, { silent: true });
@@ -1422,7 +1430,10 @@ function buildIdentity(task) {
 }
 
 /* ---------- Padlet 相關 ---------- */
-function openPadlet() { window.open(PADLET_URL, '_blank', 'noopener'); }
+function openPadlet(key) {
+  const url = (typeof key === 'string' && PADLET_LINKS[key]) || PADLET_URL;
+  window.open(url, '_blank', 'noopener');
+}
 
 function whoAmI() {
   return state.identity ? `${state.identity.cls}-${state.identity.seat} ${state.identity.name}` : '';
@@ -1483,7 +1494,7 @@ function showImageDialog(task, dataURL, name) {
              style="max-height:38vh;border:1px solid rgba(54,53,47,.3);-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto">
            <div>iPad：<b>長按圖片 → 加入「照片」</b>，再到 Padlet 上傳。</div>
            <a href="${dataURL}" download="${esc(name)}" class="inline-block mt-2 underline" style="color:var(--indigo)">電腦請點此下載</a>`,
-    buttons: [{ text: '前往 Padlet ↗', style: 'success', onClick: openPadlet }, { text: '關閉', style: 'ghost' }]
+    buttons: [{ text: '前往 Padlet ↗', style: 'success', onClick: () => openPadlet(task.id === 8 ? 'photo' : 'submit') }, { text: '關閉', style: 'ghost' }]
   });
 }
 
@@ -1766,7 +1777,7 @@ async function openSubmit() {
   cb.type = 'button'; cb.className = 'btn btn-indigo flex-1'; cb.textContent = '複製文字並前往 Padlet ↗';
   cb.addEventListener('click', () => {
     copyText(title + '\n' + text);
-    openPadlet();
+    openPadlet('submit');
     state.submitted = true; saveSession(); renderSubmitBtn();
     sendSubmitToSheet();
     setTimeout(() => toast('已複製，到 Padlet 貼上並附上圖片'), 400);
