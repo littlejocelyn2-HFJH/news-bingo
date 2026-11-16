@@ -361,6 +361,7 @@ const SHEET_URL  = '';                 // ← Google Apps Script 網頁應用程
 const SUBMIT_SECTION = '九宮格成果';   // ← 學生繳交總表時，要貼到 Padlet 的哪個區段
 const RECORD_SECTION = '聲歷其境';     // ← 第 5 關錄音要貼到的區段
 const PHOTO_SECTION  = '畫重點';       // ← 第 8 關重點照片要貼到的區段
+const IMAGE_SECTION  = '影像支援';     // ← 第 4 關配圖要貼到的區段
 
 /* 老師預覽模式：網址加上 ?preview 即可，九格全開、不送出任何資料 */
 const PREVIEW = new URLSearchParams(location.search).has('preview');
@@ -386,7 +387,7 @@ const TASKS = [
   { id: 3, title: '知音相惜', type: 'padlet', wash: '#a9c3c9', showGo: true,
     desc: '到 Padlet <b>聽一位同學的朗讀錄音</b>，並在貼文下方留言<b>具體稱讚</b>（例如：咬字清楚、語速剛好、很有感情）。' },
   { id: 4, title: '影像支援', type: 'padlet', wash: '#b4c7a6', showGo: true,
-    desc: '回到 Padlet 你自己的錄音貼文，<b>加上一張符合新聞氛圍的圖片</b>，讓聽眾更有畫面感。' },
+    desc: '幫你的朗讀找一張<b>符合新聞氛圍的圖片</b>，貼到 Padlet 的<b>「影像支援」</b>區段，讓聽眾更有畫面感。' },
   { id: 5, title: '聲歷其境', type: 'identity', wash: '#d9b169',
     desc: '請挑選報導中最精華的<b>「完整一段」</b>，錄下你的朗讀。' },
   { id: 6, title: '記者 OS', type: 'text', wash: '#9fb9cf',
@@ -1173,7 +1174,10 @@ function buildPadlet(task) {
   const body = $('taskBody');
   const steps = task.id === 3
     ? ['點「前往 Padlet」', '選一位同學的錄音，從頭聽到尾', '在留言區寫下具體的稱讚', '回到這裡按「我已完成」']
-    : ['點「前往 Padlet」，找到自己的錄音貼文', '編輯貼文，加上一張符合新聞氛圍的圖片', '回到這裡按「我已完成」'];
+    : [`按「複製標題並前往 Padlet」`,
+       `在<b style="color:var(--vermilion)">「${esc(IMAGE_SECTION)}」</b>區段按該區段下方的 <b>＋</b>`,
+       '標題長按<b>貼上</b>，再加入一張符合新聞氛圍的圖片（可以用 Padlet 的「圖片搜尋」或自己拍）',
+       '發布後，回到這裡按「我已完成」'];
   const ol = document.createElement('ol');
   ol.className = 'space-y-3 text-lg';
   ol.innerHTML = steps.map((s, i) => `
@@ -1183,12 +1187,24 @@ function buildPadlet(task) {
     </li>`).join('');
   body.appendChild(ol);
 
-  if (task.showGo) addFooterBtn('前往 Padlet ↗', 'success', openPadlet);
+  if (task.id === 4) {
+    const label = `${whoAmI() || '班級-座號 姓名'} - 影像支援`;
+    body.insertAdjacentHTML('beforeend', `
+      <div class="mt-5 p-4 text-center" style="border:1px solid var(--ink);background:var(--paper-2)">
+        <div class="label mb-1">你的貼文標題</div>
+        <div class="text-xl font-black tracking-wider" style="user-select:text;-webkit-user-select:text">${esc(label)}</div>
+      </div>`);
+    addFooterBtn('複製標題並前往 Padlet ↗', 'success', () => {
+      copyText(label);
+      openPadlet();
+      toast(`標題已複製，到「${IMAGE_SECTION}」區段按＋`);
+    }, 'flex-1');
+  } else if (task.showGo) addFooterBtn('前往 Padlet ↗', 'success', openPadlet);
   addFooterBtn('我已完成', 'primary', () => {
     showDialog({
       icon: '問', wash: task.wash,
       title: '真的完成了嗎？',
-      html: task.id === 3 ? '你已經在 Padlet 聽完同學錄音，<br>並留下稱讚了嗎？' : '你已經在 Padlet 的貼文中<br>加上圖片了嗎？',
+      html: task.id === 3 ? '你已經在 Padlet 聽完同學錄音，<br>並留下稱讚了嗎？' : `你已經在 Padlet 的「${esc(IMAGE_SECTION)}」區段<br>發布圖片了嗎？`,
       buttons: [
         { text: '是的，完成了', style: 'primary', onClick: () => completeTask(task.id, true) },
         { text: '還沒', style: 'ghost' }
